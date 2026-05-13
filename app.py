@@ -6,8 +6,18 @@ import torchvision.models as models
 import torch.nn as nn
 import io
 import numpy as np
-
 app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Load classes
 with open("classes.txt", "r") as f:
