@@ -1,0 +1,18 @@
+Potato_Early_Blight
+Potato_Healthy
+Potato_Late_Blight
+Rice_Bacterialblight
+Rice_Blast
+Rice_Brownspot
+Rice_Tungro
+Tomato_Bacterial_spot
+Tomato_Early_blight
+Tomato_healthy
+Tomato_Late_blight
+Tomato_Leaf_Mold
+Tomato_powdery_mildew
+Tomato_Septoria_leaf_spot
+Tomato_Spider_mites Two-spotted_spider_mite
+Tomato_Target_Spot
+Tomato_Tomato_mosaic_virus
+Tomato_Tomato_Yellow_Leaf_Curl_Virus
