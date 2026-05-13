@@ -8,7 +8,7 @@ import io
 
 app = FastAPI()
 
-# Load classes
+# Load class labels
 with open("classes.txt", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
@@ -29,9 +29,10 @@ model.load_state_dict(
     )
 )
 
+# Set model to evaluation mode
 model.eval()
 
-# Image transform
+# Image preprocessing
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -45,30 +46,50 @@ def home():
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    image_bytes = await file.read()
 
-    image = Image.open(
-        io.BytesIO(image_bytes)
-    ).convert("RGB")
+    try:
+        # Read uploaded image
+        image_bytes = await file.read()
 
-    image = transform(image).unsqueeze(0)
+        image = Image.open(
+            io.BytesIO(image_bytes)
+        ).convert("RGB")
 
-    with torch.no_grad():
-        outputs = model(image)
+        # Transform image
+        image = transform(image).unsqueeze(0)
 
-        probabilities = torch.nn.functional.softmax(
-            outputs[0],
-            dim=0
-        )
+        # Prediction
+        with torch.no_grad():
 
-        confidence, predicted = torch.max(
-            probabilities,
-            0
-        )
+            outputs = model(image)
 
-    result = classes[predicted.item()]
+            probabilities = torch.nn.functional.softmax(
+                outputs[0],
+                dim=0
+            )
 
-    return {
-        "prediction": result,
-        "confidence": f"{confidence.item()*100:.2f}%"
-    }
+            confidence, predicted = torch.max(
+                probabilities,
+                0
+            )
+
+        confidence_percent = confidence.item() * 100
+
+        result = classes[predicted.item()]
+
+        # Reject low confidence images
+        if confidence_percent < 70:
+            return {
+                "prediction": "Not a valid plant leaf image",
+                "confidence": f"{confidence_percent:.2f}%"
+            }
+
+        return {
+            "prediction": result,
+            "confidence": f"{confidence_percent:.2f}%"
+        }
+
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
