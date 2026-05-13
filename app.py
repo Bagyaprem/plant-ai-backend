@@ -5,23 +5,24 @@ import torchvision.transforms as transforms
 import torchvision.models as models
 import torch.nn as nn
 import io
+import numpy as np
 
 app = FastAPI()
 
-# Load class labels
+# Load classes
 with open("classes.txt", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
-# Load MobileNetV2 model
+# Load MobileNetV2
 model = models.mobilenet_v2(weights=None)
 
-# Modify final layer
+# Final layer
 model.classifier[1] = nn.Linear(
     model.classifier[1].in_features,
     len(classes)
 )
 
-# Load trained weights
+# Load weights
 model.load_state_dict(
     torch.load(
         "model/plant_disease_model.pth",
@@ -29,10 +30,9 @@ model.load_state_dict(
     )
 )
 
-# Set model to evaluation mode
 model.eval()
 
-# Image preprocessing
+# Transform
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -48,20 +48,32 @@ def home():
 async def predict(file: UploadFile = File(...)):
 
     try:
-        # Read uploaded image
+        # Read image
         image_bytes = await file.read()
 
         image = Image.open(
             io.BytesIO(image_bytes)
         ).convert("RGB")
 
-        # Transform image
-        image = transform(image).unsqueeze(0)
+        # Convert to numpy
+        img_np = np.array(image)
 
-        # Prediction
+        # Basic validation
+        brightness = img_np.mean()
+
+        # Reject dark or invalid images
+        if brightness < 30:
+            return {
+                "prediction": "Image too dark or invalid",
+                "confidence": "0%"
+            }
+
+        # Transform
+        image_tensor = transform(image).unsqueeze(0)
+
         with torch.no_grad():
 
-            outputs = model(image)
+            outputs = model(image_tensor)
 
             probabilities = torch.nn.functional.softmax(
                 outputs[0],
@@ -77,8 +89,8 @@ async def predict(file: UploadFile = File(...)):
 
         result = classes[predicted.item()]
 
-        # Reject low confidence images
-        if confidence_percent < 70:
+        # Strong rejection threshold
+        if confidence_percent < 85:
             return {
                 "prediction": "Not a valid plant leaf image",
                 "confidence": f"{confidence_percent:.2f}%"
@@ -90,6 +102,7 @@ async def predict(file: UploadFile = File(...)):
         }
 
     except Exception as e:
+
         return {
             "error": str(e)
         }
